@@ -55,9 +55,9 @@
 </head>
 <body class="bg-black text-white">
 
+    <!-- STEP 1: Make sure the video file is in an 'assets' folder in your project -->
     <video autoplay muted loop id="video-bg">
-        <!-- This URL is from the file you uploaded. -->
-        <source src="https://storage.googleapis.com/gemini-prod-us-west1-429923353592-assets/224a1b8c-8d18-4775-9d57-41d9a2e6f404" type="video/mp4">
+        <source src="assets/goku-ultra-instinct_2.3840x2160.mp4" type="video/mp4">
         Your browser does not support the video tag.
     </video>
 
@@ -116,6 +116,9 @@
             <!-- Sagas will be injected here by JavaScript -->
         </main>
 
+        <!-- Spacer Div for scrolling past content -->
+        <div class="h-screen"></div>
+
     </div>
 
     <script type="module">
@@ -124,25 +127,18 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- DEPLOYMENT CONFIGURATION ---
-        // IMPORTANT: For deployment on a live server (like GitHub Pages),
-        // you MUST replace the placeholder below with your own Firebase project configuration.
-        // You can get this from your Firebase project settings.
+        // --- STEP 2: DEPLOYMENT CONFIGURATION ---
+        // IMPORTANT: Paste your Firebase project configuration object here.
         // ALSO IMPORTANT: Make sure you have enabled "Anonymous" sign-in method in your Firebase Authentication settings.
-        
         const firebaseConfig = {
-  apiKey: "AIzaSyAPmS_xOvDIzcKnvVPyxL8ix8tESrLQhv4",
-  authDomain: "python-tracker-8b867.firebaseapp.com",
-  projectId: "python-tracker-8b867",
-  storageBucket: "python-tracker-8b867.firebasestorage.app",
-  messagingSenderId: "249218434206",
-  appId: "1:249218434206:web:5b014e063b6421a6fd678f",
-  measurementId: "G-WJ7HJQB1PW"
-};
-
+            apiKey: "PASTE_YOUR_API_KEY_HERE",
+            authDomain: "PASTE_YOUR_AUTH_DOMAIN_HERE",
+            projectId: "PASTE_YOUR_PROJECT_ID_HERE",
+            storageBucket: "PASTE_YOUR_STORAGE_BUCKET_HERE",
+            messagingSenderId: "PASTE_YOUR_MESSAGING_SENDER_ID_HERE",
+            appId: "PASTE_YOUR_APP_ID_HERE"
+        };
         
-        // This variable is used in the development environment.
-        // We check if it exists and use it, otherwise we use the config above.
         const finalFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-python-quest';
         
@@ -189,7 +185,6 @@
                     setupRealtimeListener();
                 } else {
                     try {
-                        // Use custom token if in dev environment, otherwise sign in anonymously
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await signInWithCustomToken(auth, __initial_auth_token);
                         } else {
@@ -197,7 +192,7 @@
                         }
                     } catch (error) {
                         console.error("Authentication failed:", error);
-                        document.getElementById('user-id').textContent = 'Auth Error';
+                        document.getElementById('user-id').textContent = 'Auth Error. Check console.';
                     }
                 }
             });
@@ -205,7 +200,6 @@
 
         function getDocRef() {
             if (!userId) {
-                console.error("User not authenticated, cannot get doc ref.");
                 return null;
             }
             return doc(db, 'artifacts', appId, 'users', userId, 'checklist', 'userProgress');
@@ -241,6 +235,7 @@
                 updateUI();
             }, (error) => {
                 console.error("Error listening to document:", error);
+                document.getElementById('user-id').textContent = 'Firestore Rules Error. Check console.';
             });
         }
         
@@ -389,4 +384,3 @@
     </script>
 </body>
 </html>
-
