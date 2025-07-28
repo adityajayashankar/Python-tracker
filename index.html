@@ -124,14 +124,31 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- CONFIGURATION ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "your-api-key", authDomain: "your-auth-domain", projectId: "your-project-id" };
+        // --- DEPLOYMENT CONFIGURATION ---
+        // IMPORTANT: For deployment on a live server (like GitHub Pages),
+        // you MUST replace the placeholder below with your own Firebase project configuration.
+        // You can get this from your Firebase project settings.
+        // ALSO IMPORTANT: Make sure you have enabled "Anonymous" sign-in method in your Firebase Authentication settings.
+        
+        const firebaseConfig = {
+  apiKey: "AIzaSyAPmS_xOvDIzcKnvVPyxL8ix8tESrLQhv4",
+  authDomain: "python-tracker-8b867.firebaseapp.com",
+  projectId: "python-tracker-8b867",
+  storageBucket: "python-tracker-8b867.firebasestorage.app",
+  messagingSenderId: "249218434206",
+  appId: "1:249218434206:web:5b014e063b6421a6fd678f",
+  measurementId: "G-WJ7HJQB1PW"
+};
+
+        
+        // This variable is used in the development environment.
+        // We check if it exists and use it, otherwise we use the config above.
+        const finalFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-python-quest';
         
         const deadline = new Date("2025-08-05T23:59:59").getTime();
         const XP_PER_TASK = 10;
         
-        // MASSIVE UPDATE: Added all new topics into a structured Saga format
         const sagas = [
             { name: "Saga 1: The Foundation", achievement: "Saiyan Scholar", tasks: ["Python Home", "Python Intro", "Python Get Started", "Python Syntax", "Python Comments", "Python Variables", "Python Data Types", "Python Numbers", "Python Casting", "Strings: Introduction", "Strings: Slicing", "Strings: Modify", "Strings: Concatenate", "Strings: Format Method", "Strings: Escape Characters", "Strings: All Methods", "Python Booleans", "Python Operators"] },
             { name: "Saga 2: Data Structures", achievement: "Data Kaioken", tasks: ["Python Lists", "Python Tuples", "Python Sets", "Python Dictionaries", "Python Arrays"] },
@@ -150,19 +167,17 @@
         let checklistState = new Array(totalTasks).fill(false);
         let db, auth;
         let userId;
-        let unsubscribe; // To store the onSnapshot listener
+        let unsubscribe;
 
-        // --- INITIALIZATION ---
-        
         function initialize() {
             try {
-                const app = initializeApp(firebaseConfig);
+                const app = initializeApp(finalFirebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
                 handleAuthentication();
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
-                document.body.innerHTML = `<div class="text-red-500 text-center p-8">Error initializing. Please check console.</div>`;
+                document.getElementById('user-id').textContent = 'Firebase Config Error. Check console.';
             }
         }
 
@@ -174,6 +189,7 @@
                     setupRealtimeListener();
                 } else {
                     try {
+                        // Use custom token if in dev environment, otherwise sign in anonymously
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await signInWithCustomToken(auth, __initial_auth_token);
                         } else {
@@ -186,8 +202,6 @@
                 }
             });
         }
-
-        // --- FIRESTORE ---
 
         function getDocRef() {
             if (!userId) {
@@ -239,8 +253,6 @@
                 console.error("Error saving progress: ", error);
             }
         }
-
-        // --- UI RENDERING & UPDATES ---
 
         function renderChecklist() {
             const container = document.getElementById('checklist-container');
@@ -314,7 +326,6 @@
             const powerLevel = Math.floor(currentXp / 100) + 1;
             document.getElementById('power-level').textContent = powerLevel;
 
-            // Adjusted ranks for the much larger task list
             let rank = "Novice Coder";
             if (powerLevel >= 120) rank = "Mastered Ultra Instinct";
             else if (powerLevel >= 100) rank = "Web Weaver";
@@ -349,7 +360,6 @@
             });
         }
 
-        // --- COUNTDOWN TIMER ---
         function startCountdown() {
             const countdownElement = document.getElementById('countdown');
             if (!countdownElement) return;
@@ -371,7 +381,6 @@
             }, 1000);
         }
 
-        // --- START THE APP ---
         document.addEventListener('DOMContentLoaded', () => {
             startCountdown();
             initialize();
@@ -380,3 +389,4 @@
     </script>
 </body>
 </html>
+
