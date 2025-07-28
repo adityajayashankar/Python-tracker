@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Power-Up Quest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Orbitron', sans-serif;
+            overflow-x: hidden;
+        }
+        #video-bg {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            z-index: -100;
+            object-fit: cover;
+            filter: brightness(0.4);
+        }
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+        }
+        .task-item:hover {
+            transform: translateX(5px);
+            transition: transform 0.2s ease-in-out;
+        }
+        .task-item input:checked + label {
+            text-decoration: line-through;
+            color: #4ade80; /* green-400 */
+        }
+        .achievement-unlocked {
+            text-shadow: 0 0 10px #fde047, 0 0 20px #fde047; /* yellow-300 */
+            color: #fde047;
+        }
+        .progress-bar-inner {
+            transition: width 0.5s ease-in-out;
+        }
+        details[open] summary ~ * {
+            animation: sweep .5s ease-in-out;
+        }
+        @keyframes sweep {
+            0%    {opacity: 0; transform: translateX(-10px)}
+            100%  {opacity: 1; transform: translateX(0)}
+        }
+    </style>
+</head>
+<body class="bg-black text-white">
+
+    <video autoplay muted loop id="video-bg">
+        <!-- This URL is from the file you uploaded. -->
+        <source src="https://storage.googleapis.com/gemini-prod-us-west1-429923353592-assets/224a1b8c-8d18-4775-9d57-41d9a2e6f404" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+
+    <div class="content-wrapper container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-6xl font-black uppercase tracking-widest text-shadow-lg" style="text-shadow: 0 0 15px rgba(79, 70, 229, 0.8);">Python Power-Up</h1>
+            <p class="text-indigo-300 mt-2">Your Ultimate Coder's Quest</p>
+        </header>
+
+        <!-- Countdown Timer -->
+        <div class="bg-white/10 backdrop-blur-sm border border-indigo-500/50 rounded-lg p-4 mb-8 text-center shadow-2xl">
+            <h2 class="text-lg font-bold uppercase text-indigo-300 mb-2">Tournament of Coders Deadline</h2>
+            <div id="countdown" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-2xl md:text-4xl">
+                <div><span id="days" class="font-black">0</span><p class="text-sm">Days</p></div>
+                <div><span id="hours" class="font-black">0</span><p class="text-sm">Hours</p></div>
+                <div><span id="minutes" class="font-black">0</span><p class="text-sm">Minutes</p></div>
+                <div><span id="seconds" class="font-black">0</span><p class="text-sm">Seconds</p></div>
+            </div>
+        </div>
+
+        <!-- Gamification Stats -->
+        <div class="bg-white/10 backdrop-blur-sm border border-indigo-500/50 rounded-lg p-6 mb-8 shadow-2xl">
+            <div class="grid md:grid-cols-3 gap-6 text-center">
+                <div>
+                    <h3 class="font-bold text-indigo-300 uppercase">Power Level</h3>
+                    <p id="power-level" class="text-3xl font-black text-green-400">1</p>
+                </div>
+                <div>
+                    <h3 class="font-bold text-indigo-300 uppercase">Current Rank</h3>
+                    <p id="rank" class="text-2xl font-bold">Novice Coder</p>
+                </div>
+                <div>
+                    <h3 class="font-bold text-indigo-300 uppercase">Experience</h3>
+                    <p id="xp" class="text-3xl font-black">0 XP</p>
+                </div>
+            </div>
+            <div class="mt-6">
+                <h3 class="font-bold text-indigo-300 uppercase text-center mb-2">Total Progress</h3>
+                <div class="w-full bg-gray-700 rounded-full h-6">
+                    <div id="total-progress-bar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-6 rounded-full text-center text-white font-bold flex items-center justify-center" style="width: 0%;">
+                        <span id="total-progress-text">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User ID Display -->
+        <div class="text-center mb-8">
+            <p class="text-xs text-gray-400">Your User ID (for progress saving): <span id="user-id" class="font-mono">loading...</span></p>
+        </div>
+
+
+        <!-- Checklist -->
+        <main id="checklist-container" class="space-y-4">
+            <!-- Sagas will be injected here by JavaScript -->
+        </main>
+
+    </div>
+
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIGURATION ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "your-api-key", authDomain: "your-auth-domain", projectId: "your-project-id" };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-python-quest';
+        
+        const deadline = new Date("2025-08-05T23:59:59").getTime();
+        const XP_PER_TASK = 10;
+        
+        // MASSIVE UPDATE: Added all new topics into a structured Saga format
+        const sagas = [
+            { name: "Saga 1: The Foundation", achievement: "Saiyan Scholar", tasks: ["Python Home", "Python Intro", "Python Get Started", "Python Syntax", "Python Comments", "Python Variables", "Python Data Types", "Python Numbers", "Python Casting", "Strings: Introduction", "Strings: Slicing", "Strings: Modify", "Strings: Concatenate", "Strings: Format Method", "Strings: Escape Characters", "Strings: All Methods", "Python Booleans", "Python Operators"] },
+            { name: "Saga 2: Data Structures", achievement: "Data Kaioken", tasks: ["Python Lists", "Python Tuples", "Python Sets", "Python Dictionaries", "Python Arrays"] },
+            { name: "Saga 3: Control Flow & Functions", achievement: "Super Saiyan Scripter", tasks: ["Python If...Else", "Python Match", "Python While Loops", "Python For Loops", "Python Functions", "Python Lambda", "Python Scope"] },
+            { name: "Saga 4: Object-Oriented Programming", achievement: "Ascended Developer", tasks: ["Python Classes/Objects", "Python Inheritance", "Python Iterators", "Python Polymorphism"] },
+            { name: "Saga 5: Advanced Python & Tooling", achievement: "God-Tier Programmer", tasks: ["Python Modules", "Python Dates", "Python Math", "Python JSON", "Python RegEx", "Python PIP", "Python Try...Except", "Python User Input", "Python String Formatting (f-strings)", "Python VirtualEnv"] },
+            { name: "Saga 6: File Handling", achievement: "File Master", tasks: ["File Handling: Intro", "File Handling: Read", "File Handling: Write/Create", "File Handling: Delete"] },
+            { name: "Saga 7: Python & Databases", achievement: "Database Dominator", tasks: ["MySQL: Get Started", "MySQL: Create Database", "MySQL: Create Table", "MySQL: Insert", "MySQL: Select", "MySQL: Where", "MySQL: Order By", "MySQL: Delete", "MySQL: Drop Table", "MySQL: Update", "MySQL: Limit", "MySQL: Join", "MongoDB: Get Started", "MongoDB: Create DB", "MongoDB: Collection", "MongoDB: Insert", "MongoDB: Find", "MongoDB: Query", "MongoDB: Sort", "MongoDB: Delete", "MongoDB: Drop Collection", "MongoDB: Update", "MongoDB: Limit"] },
+            { name: "Saga 8: Data Science & Viz", achievement: "Data Scientist", tasks: ["NumPy Tutorial", "Pandas Tutorial", "SciPy Tutorial", "Matplotlib: Intro", "Matplotlib: Get Started", "Matplotlib: Pyplot", "Matplotlib: Plotting", "Matplotlib: Markers", "Matplotlib: Line", "Matplotlib: Labels", "Matplotlib: Grid", "Matplotlib: Subplot", "Matplotlib: Scatter", "Matplotlib: Bars"] },
+            { name: "Saga 9: Machine Learning", achievement: "ML Grandmaster", tasks: ["ML: Getting Started", "ML: Mean Median Mode", "ML: Standard Deviation", "ML: Percentile", "ML: Data Distribution", "ML: Normal Data Distribution", "ML: Scatter Plot", "ML: Linear Regression", "ML: Polynomial Regression", "ML: Multiple Regression", "ML: Scale", "ML: Train/Test", "ML: Decision Tree", "ML: Confusion Matrix", "ML: Hierarchical Clustering", "ML: Logistic Regression", "ML: Grid Search", "ML: Categorical Data", "ML: K-means", "ML: Bootstrap Aggregation", "ML: Cross Validation", "ML: AUC - ROC Curve", "ML: K-nearest neighbors"] },
+            { name: "Saga 10: Data Structures & Algorithms", achievement: "Algorithm Architect", tasks: ["DSA: Intro", "DSA: Lists and Arrays", "DSA: Stacks", "DSA: Queues", "DSA: Linked Lists", "DSA: Hash Tables", "DSA: Trees", "DSA: Binary Trees", "DSA: Binary Search Trees", "DSA: AVL Trees", "DSA: Graphs", "Search: Linear Search", "Search: Binary Search", "Sort: Bubble Sort", "Sort: Selection Sort", "Sort: Insertion Sort", "Sort: Quick Sort", "Sort: Counting Sort", "Sort: Radix Sort", "Sort: Merge Sort"] },
+            { name: "Saga 11: Web Development", achievement: "Web Weaver", tasks: ["Django Tutorial"] }
+        ];
+
+        const totalTasks = sagas.reduce((acc, saga) => acc + saga.tasks.length, 0);
+        let checklistState = new Array(totalTasks).fill(false);
+        let db, auth;
+        let userId;
+        let unsubscribe; // To store the onSnapshot listener
+
+        // --- INITIALIZATION ---
+        
+        function initialize() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                handleAuthentication();
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                document.body.innerHTML = `<div class="text-red-500 text-center p-8">Error initializing. Please check console.</div>`;
+            }
+        }
+
+        async function handleAuthentication() {
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('user-id').textContent = userId;
+                    setupRealtimeListener();
+                } else {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Authentication failed:", error);
+                        document.getElementById('user-id').textContent = 'Auth Error';
+                    }
+                }
+            });
+        }
+
+        // --- FIRESTORE ---
+
+        function getDocRef() {
+            if (!userId) {
+                console.error("User not authenticated, cannot get doc ref.");
+                return null;
+            }
+            return doc(db, 'artifacts', appId, 'users', userId, 'checklist', 'userProgress');
+        }
+
+        function setupRealtimeListener() {
+            const docRef = getDocRef();
+            if (!docRef) return;
+
+            if (unsubscribe) {
+                unsubscribe();
+            }
+
+            unsubscribe = onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.progress && Array.isArray(data.progress) && data.progress.length === totalTasks) {
+                        checklistState = data.progress;
+                    } else {
+                        const oldProgress = data.progress || [];
+                        const newProgress = new Array(totalTasks).fill(false);
+                        for (let i = 0; i < Math.min(oldProgress.length, newProgress.length); i++) {
+                            newProgress[i] = oldProgress[i];
+                        }
+                        checklistState = newProgress;
+                        saveProgress();
+                    }
+                } else {
+                    checklistState = new Array(totalTasks).fill(false);
+                    saveProgress();
+                }
+                renderChecklist();
+                updateUI();
+            }, (error) => {
+                console.error("Error listening to document:", error);
+            });
+        }
+        
+        async function saveProgress() {
+            const docRef = getDocRef();
+            if (!docRef) return;
+            try {
+                await setDoc(docRef, { progress: checklistState });
+            } catch (error) {
+                console.error("Error saving progress: ", error);
+            }
+        }
+
+        // --- UI RENDERING & UPDATES ---
+
+        function renderChecklist() {
+            const container = document.getElementById('checklist-container');
+            container.innerHTML = '';
+            let taskIndex = 0;
+
+            sagas.forEach(saga => {
+                const sagaElement = document.createElement('details');
+                sagaElement.className = "bg-white/10 backdrop-blur-sm border border-indigo-500/30 rounded-lg shadow-lg overflow-hidden";
+                sagaElement.open = true;
+
+                const summary = document.createElement('summary');
+                summary.className = "p-4 cursor-pointer flex justify-between items-center font-bold text-xl";
+                
+                const sagaTitle = document.createElement('span');
+                sagaTitle.textContent = saga.name;
+
+                const achievement = document.createElement('span');
+                achievement.id = `achievement-${saga.name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                achievement.className = "text-sm text-gray-400 transition-all duration-500";
+                achievement.textContent = `🔒 ${saga.achievement}`;
+
+                summary.appendChild(sagaTitle);
+                summary.appendChild(achievement);
+                sagaElement.appendChild(summary);
+
+                const taskList = document.createElement('div');
+                taskList.className = "p-4 pt-0";
+
+                saga.tasks.forEach(taskName => {
+                    const item = document.createElement('div');
+                    item.className = "task-item flex items-center p-2 rounded-md";
+                    
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.id = `task-${taskIndex}`;
+                    input.dataset.index = taskIndex;
+                    input.checked = checklistState[taskIndex] || false;
+                    input.className = "w-5 h-5 rounded bg-gray-700 border-gray-600 text-indigo-500 focus:ring-indigo-500";
+                    
+                    const label = document.createElement('label');
+                    label.htmlFor = `task-${taskIndex}`;
+                    label.textContent = taskName;
+                    label.className = "ml-3 text-lg";
+
+                    item.appendChild(input);
+                    item.appendChild(label);
+                    taskList.appendChild(item);
+
+                    input.addEventListener('change', (e) => {
+                        const idx = parseInt(e.target.dataset.index);
+                        checklistState[idx] = e.target.checked;
+                        saveProgress();
+                    });
+
+                    taskIndex++;
+                });
+
+                sagaElement.appendChild(taskList);
+                container.appendChild(sagaElement);
+            });
+        }
+
+        function updateUI() {
+            const completedTasks = checklistState.filter(Boolean).length;
+            const currentXp = completedTasks * XP_PER_TASK;
+            const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+            document.getElementById('xp').textContent = `${currentXp} XP`;
+            
+            const powerLevel = Math.floor(currentXp / 100) + 1;
+            document.getElementById('power-level').textContent = powerLevel;
+
+            // Adjusted ranks for the much larger task list
+            let rank = "Novice Coder";
+            if (powerLevel >= 120) rank = "Mastered Ultra Instinct";
+            else if (powerLevel >= 100) rank = "Web Weaver";
+            else if (powerLevel >= 80) rank = "Algorithm Architect";
+            else if (powerLevel >= 60) rank = "ML Grandmaster";
+            else if (powerLevel >= 45) rank = "Data Scientist";
+            else if (powerLevel >= 30) rank = "Database Dominator";
+            else if (powerLevel >= 20) rank = "God-Tier Programmer";
+            else if (powerLevel >= 10) rank = "Super Saiyan Scripter";
+            else if (powerLevel >= 5) rank = "Data Kaioken";
+            else if (powerLevel >= 2) rank = "Saiyan Scholar";
+            document.getElementById('rank').textContent = rank;
+
+            const progressBar = document.getElementById('total-progress-bar');
+            const progressText = document.getElementById('total-progress-text');
+            progressBar.style.width = `${progressPercentage}%`;
+            progressText.textContent = `${Math.round(progressPercentage)}%`;
+
+            let taskIndex = 0;
+            sagas.forEach(saga => {
+                const sagaTasks = saga.tasks.length;
+                const completedInSaga = checklistState.slice(taskIndex, taskIndex + sagaTasks).filter(Boolean).length;
+                const achievementEl = document.getElementById(`achievement-${saga.name.replace(/[^a-zA-Z0-9]/g, '-')}`);
+                if (completedInSaga === sagaTasks) {
+                    achievementEl.classList.add('achievement-unlocked');
+                    achievementEl.textContent = `🏆 ${saga.achievement}`;
+                } else {
+                     achievementEl.classList.remove('achievement-unlocked');
+                     achievementEl.textContent = `🔒 ${saga.achievement}`;
+                }
+                taskIndex += sagaTasks;
+            });
+        }
+
+        // --- COUNTDOWN TIMER ---
+        function startCountdown() {
+            const countdownElement = document.getElementById('countdown');
+            if (!countdownElement) return;
+
+            const intervalId = setInterval(() => {
+                const now = new Date().getTime();
+                const distance = deadline - now;
+
+                if (distance < 0) {
+                    countdownElement.innerHTML = `<div class="col-span-4 text-red-500 font-bold text-2xl">The Tournament has begun!</div>`;
+                    clearInterval(intervalId);
+                    return;
+                }
+
+                document.getElementById('days').textContent = Math.floor(distance / (1000 * 60 * 60 * 24));
+                document.getElementById('hours').textContent = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                document.getElementById('minutes').textContent = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                document.getElementById('seconds').textContent = Math.floor((distance % (1000 * 60)) / 1000);
+            }, 1000);
+        }
+
+        // --- START THE APP ---
+        document.addEventListener('DOMContentLoaded', () => {
+            startCountdown();
+            initialize();
+        });
+
+    </script>
+</body>
+</html>
